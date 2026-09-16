@@ -7,7 +7,8 @@ export default function AccountPage() {
   const [loading, setLoading] = useState(true)
   const [message, setMessage] = useState('')
   const [user, setUser] = useState<{ id: string; phone?: string | null; email?: string | null } | null>(null)
-  const [profile, setProfile] = useState<{ display_name: string | null; country: string | null; city: string | null; role: string | null; profile_completed: number | null } | null>(null)
+  const [profile, setProfile] = useState<{ display_name: string | null; country: string | null; city: string | null; role: string | null; profile_completed: number | null; profile_picture_path: string | null } | null>(null)
+  const [profilePictureUrl, setProfilePictureUrl] = useState<string | null>(null)
 
   useEffect(() => {
     let active = true
@@ -19,9 +20,14 @@ export default function AccountPage() {
       }
       if (!active) return
       setUser({ id: data.user.id, phone: data.user.phone, email: data.user.email })
-      const { data: profileData, error: profileError } = await supabase.from('profiles').select('display_name,country,city,role,profile_completed').eq('id', data.user.id).maybeSingle()
+      const { data: profileData, error: profileError } = await supabase.from('profiles').select('display_name,country,city,role,profile_completed,profile_picture_path').eq('id', data.user.id).maybeSingle()
       if (profileError) setMessage(profileError.message)
-      if (active) { setProfile(profileData); setLoading(false) }
+      if (active) setProfile(profileData)
+      if (profileData?.profile_picture_path) {
+        const { data: signed } = await supabase.storage.from('actor-media').createSignedUrl(profileData.profile_picture_path, 60 * 60)
+        if (active && signed?.signedUrl) setProfilePictureUrl(signed.signedUrl)
+      }
+      if (active) setLoading(false)
     }
     void load()
     return () => { active = false }
@@ -39,12 +45,15 @@ export default function AccountPage() {
     <main className="payment-page container">
       <a className="back-link" href="/">← Where Talent Meets Film</a>
       <div className="payment-header">
-        <div><div className="eyebrow">Your talent account</div><h1>Welcome{profile?.display_name ? `, ${profile.display_name}` : ''}.</h1><p>Your account is your home for your talent profile, services, payments and customer care.</p></div>
+        <div className="account-heading">
+          <div className="account-avatar">{profilePictureUrl ? <img src={profilePictureUrl} alt="Your profile" /> : <span>{(profile?.display_name || 'U').charAt(0).toUpperCase()}</span>}</div>
+          <div><div className="eyebrow">Your talent account</div><h1>Welcome{profile?.display_name ? `, ${profile.display_name}` : ''}.</h1><p>Your account is your home for your talent profile, services, payments and customer care.</p></div>
+        </div>
         <button className="btn secondary" onClick={signOut}>Sign out</button>
       </div>
       {message && <div className="info-box"><p>{message}</p></div>}
       <section className="payment-layout">
-        <div className="payment-card"><h2>Account details</h2><p><strong>Phone:</strong> {user.phone || 'Not set'}</p><p><strong>Country:</strong> {profile?.country || 'Not set'}</p><p><strong>City:</strong> {profile?.city || 'Not set'}</p><p><strong>Account type:</strong> {profile?.role || 'actor'}</p><p><strong>Profile readiness:</strong> {profile?.profile_completed ?? 0}%</p></div>
+        <div className="payment-card"><h2>Account details</h2><p><strong>Phone:</strong> {user.phone || 'Not set'}</p><p><strong>Country:</strong> {profile?.country || 'Not set'}</p><p><strong>City:</strong> {profile?.city || 'Not set'}</p><p><strong>Account type:</strong> {profile?.role || 'actor'}</p><p><strong>Profile readiness:</strong> {profile?.profile_completed ?? 0}%</p>{!profilePictureUrl && <p className="muted">No profile picture uploaded yet. Add one while building your actor profile.</p>}</div>
         <div className="payment-card"><h2>Platform services</h2><p className="muted">Build your professional profile, request services and track payment instructions from one account.</p><div className="actions"><a className="btn primary" href="/actors/register">Build / update actor profile →</a><a className="btn secondary" href="/payments">Services & payments →</a><a className="btn secondary" href="/support">Chat with customer care →</a></div></div>
       </section>
     </main>
