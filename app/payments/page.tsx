@@ -18,8 +18,8 @@ export default function PaymentsPage() {
   const [userId, setUserId] = useState('')
   const [proofFiles, setProofFiles] = useState<Record<string, File | null>>({})
 
-  async function load() {
-    setLoading(true)
+  async function load(showLoading = true) {
+    if (showLoading) setLoading(true)
     const { data: auth } = await supabase.auth.getUser()
     if (!auth.user) { setMessage('Please sign in before requesting a service payment.'); setLoading(false); return }
     setUserId(auth.user.id)
@@ -34,7 +34,11 @@ export default function PaymentsPage() {
     setLoading(false)
   }
 
-  useEffect(() => { void load() }, [])
+  useEffect(() => {
+    void load()
+    const timer = window.setInterval(() => { void load(false) }, 5000)
+    return () => window.clearInterval(timer)
+  }, [])
 
   const selected = categories.find((c) => c.id === categoryId)
   const needsAmount = selected?.pricing_type !== 'fixed'
@@ -46,7 +50,7 @@ export default function PaymentsPage() {
     if (!country.trim()) { setMessage('Enter your country so the admin can provide the correct local payment instructions.'); return }
     const { error } = await supabase.from('payment_requests').insert({ user_id: userId, title: selected.name, reason: reason.trim() || null, amount, currency: 'USD', service_category_id: selected.id, base_amount_usd: selected.base_amount_usd, country_code: country.trim().toUpperCase(), currency_source: 'admin_set' })
     if (error) setMessage(error.message)
-    else { setMessage('Service payment request submitted. The admin will review it and provide the applicable local payment account and amount.'); setReason(''); setVariableAmount(''); await load() }
+    else { setMessage('Service payment request submitted. The admin will review it and provide the applicable local payment account and amount.'); setReason(''); setVariableAmount(''); await load(false) }
   }
 
   async function uploadProof(requestId: string) {
@@ -59,11 +63,11 @@ export default function PaymentsPage() {
     if (error) { setMessage(error.message); return }
     setMessage('Payment proof submitted for admin review.')
     setProofFiles((current) => ({ ...current, [requestId]: null }))
-    await load()
+    await load(false)
   }
 
   if (loading) return <main className="payment-page container"><p>Loading payment services…</p></main>
   if (!userId) return <main className="payment-page container"><a className="back-link" href="/">← Where Talent Meets Film</a><div className="payment-card"><div className="eyebrow">Services & payments</div><h1>Sign in to continue.</h1><p className="muted">Create or sign in to an account before requesting a service or submitting payment proof.</p><div className="actions"><a className="btn primary" href="/login">Sign in / Create account →</a><a className="btn secondary" href="/">Back home</a></div></div></main>
 
-  return <main className="payment-page container"><a className="back-link" href="/">← Where Talent Meets Film</a><div className="payment-header"><div><div className="eyebrow">Services & payments</div><h1>Request a service.</h1><p>Choose what you need. The platform keeps a reference value in USD, while the administrator supplies the applicable local currency and payment account for your country.</p></div><a className="btn secondary" href="/admin/payments">Admin payment desk</a></div>{message && <div className="info-box"><strong>Payment update</strong><p>{message}</p></div>}<section className="payment-layout"><div className="payment-card"><h2>New service request</h2><label>Service<select value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>{categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>{selected && <div className="price-box"><strong>{selected.pricing_type === 'fixed' ? `$${Number(selected.base_amount_usd).toLocaleString()} USD reference` : selected.pricing_type === 'commission' ? `${selected.commission_min_percent}%–${selected.commission_max_percent}% commission` : 'Admin-set amount'}</strong><span>{selected.description}</span></div>}{needsAmount && <label>Requested amount / earnings basis<input type="number" min="0" value={variableAmount} onChange={(e) => setVariableAmount(e.target.value)} placeholder="Enter amount" /></label>}<label>Your country<input value={country} onChange={(e) => setCountry(e.target.value)} placeholder="e.g. Nigeria, United Kingdom, Canada" /></label><label>Reason / notes <small>Optional</small><textarea rows={4} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Tell the admin what you need this service for." /></label><button className="btn primary" onClick={submitRequest}>Request payment instructions →</button></div><div className="payment-card"><h2>My requests</h2>{requests.length === 0 ? <p className="muted">No payment requests yet.</p> : requests.map((r) => <article className="request-item" key={r.id}><div><strong>{r.title}</strong><span className="status">{r.status}</span></div><p>{r.local_amount ? `${r.currency} ${Number(r.local_amount).toLocaleString()}` : `${r.currency} ${Number(r.amount).toLocaleString()} reference`}</p>{r.payment_account_name && <div className="payment-instructions"><strong>Payment account</strong><p>{r.payment_account_name}{r.payment_account_number ? ` · ${r.payment_account_number}` : ''}</p>{r.payment_method && <p>Method: {r.payment_method}</p>}{r.payment_instructions && <p>{r.payment_instructions}</p>}{r.admin_payment_reference && <p>Reference: {r.admin_payment_reference}</p>}</div>}{['pending','rejected','cancelled'].includes(r.status) ? null : <div className="proof-upload"><input type="file" accept="image/*,.pdf" onChange={(e) => setProofFiles((current) => ({ ...current, [r.id]: e.target.files?.[0] ?? null }))} /><button className="btn secondary" disabled={!proofFiles[r.id]} onClick={() => uploadProof(r.id)}>Submit proof</button></div>}</article>)}</div></section></main>
+  return <main className="payment-page container"><a className="back-link" href="/">← Where Talent Meets Film</a><div className="payment-header"><div><div className="eyebrow">Services & payments</div><h1>Request a service.</h1><p>Choose what you need. The platform keeps a reference value in USD, while the administrator supplies the applicable local currency and payment account for your country.</p></div><a className="btn secondary" href="/admin/payments">Admin payment desk</a></div>{message && <div className="info-box"><strong>Payment update</strong><p>{message}</p></div>}<section className="payment-layout"><div className="payment-card"><h2>New service request</h2><label>Service<select value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>{categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>{selected && <div className="price-box"><strong>{selected.pricing_type === 'fixed' ? `$${Number(selected.base_amount_usd).toLocaleString()} USD reference` : selected.pricing_type === 'commission' ? `${selected.commission_min_percent}%–${selected.commission_max_percent}% commission` : 'Admin-set amount'}</strong><span>{selected.description}</span></div>}{needsAmount && <label>Requested amount / earnings basis<input type="number" min="0" value={variableAmount} onChange={(e) => setVariableAmount(e.target.value)} placeholder="Enter amount" /></label>}<label>Your country<input value={country} onChange={(e) => setCountry(e.target.value)} placeholder="e.g. Nigeria, United Kingdom, Canada" /></label><label>Reason / notes <small>Optional</small><textarea rows={4} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Tell the admin what you need this service for." /></label><button className="btn primary" onClick={submitRequest}>Request payment instructions →</button></div><div className="payment-card"><h2>My requests</h2>{requests.length === 0 ? <p className="muted">No payment requests yet.</p> : requests.map((r) => <article className="request-item" key={r.id}><div><strong>{r.title}</strong><span className="status">{r.status}</span></div><p>{r.local_amount ? `${r.currency} ${Number(r.local_amount).toLocaleString()}` : `${r.currency} ${Number(r.amount).toLocaleString()} reference`}</p>{r.payment_account_name && <div className="payment-instructions"><strong>Payment instructions from admin</strong><p>Account name: {r.payment_account_name}</p>{r.payment_account_number && <p>Account / payment number: {r.payment_account_number}</p>}{r.payment_method && <p>Method: {r.payment_method}</p>}{r.payment_instructions && <p>{r.payment_instructions}</p>}{r.admin_payment_reference && <p>Reference: {r.admin_payment_reference}</p>}</div>}{['pending','rejected','cancelled'].includes(r.status) ? null : <div className="proof-upload"><input type="file" accept="image/*,.pdf" onChange={(e) => setProofFiles((current) => ({ ...current, [r.id]: e.target.files?.[0] ?? null }))} /><button className="btn secondary" disabled={!proofFiles[r.id]} onClick={() => uploadProof(r.id)}>Submit proof</button></div>}</article>)}</div></section></main>
 }
