@@ -10,7 +10,7 @@ export default function Home() {
       <nav className="nav container">
         <a className="brand" href="#top">Where Talent <span>Meets Film</span></a>
         <div className="links"><a href="#talent">For Actors</a><a href="#production">For Production</a><a href="#how">How It Works</a></div>
-        <a className="btn secondary" href="/actors/register">Join Platform</a>
+        <div className="actions"><a className="btn secondary" href="/login">Account Login</a><a className="btn primary" href="/actors/register">Join Platform</a></div>
       </nav>
 
       <section className="hero container" id="top">
@@ -33,7 +33,7 @@ export default function Home() {
 
       <section className="container" id="join"><div className="cta"><div><div className="eyebrow">Start your journey</div><h2>Where talent meets opportunity.</h2></div><div className="actions"><a className="btn primary" href="/actors/register">I&apos;m an Actor</a><a className="btn secondary" href="#production">I&apos;m Production</a></div></div></section>
 
-      <footer className="footer container"><div>© {new Date().getFullYear()} Golding&apos;s Production Company</div><div>Where Talent Meets Film · Talent Without Borders</div></footer>
+      <footer className="footer container"><div>© {new Date().getFullYear()} Golding&apos;s Production Company</div><div>Where Talent Meets Film · Talent Without Borders</div><div><a href="/admin/login">Administrator Login</a></div></footer>
     </main>
   )
 }
