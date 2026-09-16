@@ -2,6 +2,7 @@
 
 import { ChangeEvent, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { authenticateWithPhone, normalizePhone } from '@/lib/phone-auth'
 import { supabase } from '@/lib/supabase'
 
 const steps = ['Account', 'Profile', 'Skills', 'Media & training', 'Availability']
@@ -46,7 +47,7 @@ export default function ActorRegistrationForm() {
     if (step === 0) {
       if (!form.name.trim() || !form.phone.trim() || !form.password) return setError('Full name, phone number and password are required.')
       if (form.password.length < 8) return setError('Password must be at least 8 characters.')
-      if (!/^\+[1-9]\d{7,14}$/.test(form.phone.replace(/[\s()-]/g, ''))) return setError('Enter your phone number in international format, for example +2348012345678.')
+      if (!/^\+[1-9]\d{7,14}$/.test(normalizePhone(form.phone))) return setError('Enter your phone number in international format, for example +2348012345678.')
     }
     setStep((current) => Math.min(current + 1, steps.length - 1))
   }
@@ -55,17 +56,9 @@ export default function ActorRegistrationForm() {
   const createProfile = async () => {
     setSaving(true)
     setError('')
-    const phone = form.phone.replace(/[\s()-]/g, '')
+    const phone = normalizePhone(form.phone)
     try {
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        phone,
-        password: form.password,
-        options: { data: { full_name: form.name.trim(), name: form.name.trim() } },
-      })
-      if (authError) throw authError
-      const user = authData.user
-      if (!user) throw new Error('Account creation did not return a user. Please try again.')
-      if (!authData.session) throw new Error('Phone confirmation is enabled in Supabase. Disable phone confirmation so users can sign in with phone and password without OTP.')
+      const { user } = await authenticateWithPhone(phone, form.password, 'signup', form.name)
 
       const { error: profileError } = await supabase.from('profiles').update({
         display_name: form.name.trim(), phone, country: form.country.trim(), region: form.region.trim(), city: form.city.trim(), profile_completed: completion,
