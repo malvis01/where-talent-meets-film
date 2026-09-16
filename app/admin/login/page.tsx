@@ -5,6 +5,11 @@ import { supabase } from '@/lib/supabase'
 
 const ADMIN_EMAIL = 'malvisdabz@gmail.com'
 
+type AuthData = {
+  user: import('@supabase/supabase-js').User | null
+  session: import('@supabase/supabase-js').Session | null
+}
+
 export default function AdminLoginPage() {
   const [email] = useState(ADMIN_EMAIL)
   const [password, setPassword] = useState('')
@@ -23,7 +28,9 @@ export default function AdminLoginPage() {
     setMessage('')
 
     try {
-      let { data, error } = await supabase.auth.signInWithPassword({ email: ADMIN_EMAIL, password })
+      let data: AuthData | null = null
+      let { data: signInData, error } = await supabase.auth.signInWithPassword({ email: ADMIN_EMAIL, password })
+      data = signInData
 
       // This project was newly connected to Supabase and the designated admin
       // account may not exist yet. If it does not exist, create it through the
@@ -43,7 +50,7 @@ export default function AdminLoginPage() {
         }
       }
 
-      if (!data.user) throw new Error('Administrator account could not be loaded.')
+      if (!data?.user) throw new Error('Administrator account could not be loaded.')
       await verifyAdmin(data.user.id)
       window.location.assign('/admin/payments')
     } catch (error) {
