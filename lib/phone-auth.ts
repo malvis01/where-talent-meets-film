@@ -7,8 +7,22 @@ type PhoneAuthResponse = {
   session: import('@supabase/supabase-js').Session
 }
 
+type FunctionError = Error & { context?: Response }
+
 export function normalizePhone(value: string) {
   return value.trim().replace(/[\s()-]/g, '')
+}
+
+async function getFunctionError(error: FunctionError) {
+  if (error.context) {
+    try {
+      const body = await error.context.clone().json() as { error?: string; message?: string }
+      if (body?.error || body?.message) return body.error || body.message
+    } catch {
+      // Fall back to the SDK error message when the response is not JSON.
+    }
+  }
+  return error.message || 'Authentication service could not complete the request.'
 }
 
 export async function authenticateWithPhone(phoneValue: string, password: string, mode: PhoneAuthMode, name?: string) {
@@ -21,7 +35,7 @@ export async function authenticateWithPhone(phoneValue: string, password: string
   const { data, error } = await supabase.functions.invoke('phone-password-auth', {
     body: { phone, password, mode, name: name?.trim() || undefined },
   })
-  if (error) throw error
+  if (error) throw new Error(await getFunctionError(error as FunctionError))
   if (!data?.user || !data?.session) throw new Error('Authentication did not return a valid session. Please try again.')
 
   const { error: sessionError } = await supabase.auth.setSession({
