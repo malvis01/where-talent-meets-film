@@ -46,21 +46,39 @@ export default function AdminPaymentsPage() {
     const paymentAccountName = patch.payment_account_name === undefined ? request.payment_account_name : patch.payment_account_name
     const paymentAccountNumber = patch.payment_account_number === undefined ? request.payment_account_number : patch.payment_account_number
     const paymentInstructions = patch.payment_instructions === undefined ? request.payment_instructions : patch.payment_instructions
-    const hasInstructions = Boolean(paymentAccountName?.trim() || paymentAccountNumber?.trim() || paymentInstructions?.trim())
+    const adminPaymentReference = patch.admin_payment_reference === undefined ? request.admin_payment_reference : patch.admin_payment_reference
+    const hasInstructions = Boolean(paymentAccountName?.trim() || paymentAccountNumber?.trim() || paymentInstructions?.trim() || adminPaymentReference?.trim())
     setSaving(request.id)
-    const { error } = await supabase.from('payment_requests').update({
+
+    const { data: auth } = await supabase.auth.getUser()
+    if (!auth.user) { setSaving(null); setMessage('Your admin session has expired. Please sign in again.'); return }
+
+    const { data: updated, error } = await supabase.from('payment_requests').update({
       local_amount: patch.local_amount === undefined ? request.local_amount : patch.local_amount,
-      currency: patch.currency ?? request.currency,
-      payment_method: patch.payment_method ?? request.payment_method,
+      currency: (patch.currency ?? request.currency)?.trim().toUpperCase(),
+      payment_method: patch.payment_method === undefined ? request.payment_method : patch.payment_method,
       payment_account_name: paymentAccountName,
       payment_account_number: paymentAccountNumber,
       payment_instructions: paymentInstructions,
-      admin_payment_reference: patch.admin_payment_reference ?? request.admin_payment_reference,
+      admin_payment_reference: adminPaymentReference,
+      created_by_admin: auth.user.id,
       status: patch.status ?? (hasInstructions ? 'confirmed' : request.status),
-    }).eq('id', request.id)
+      confirmed_by: hasInstructions ? auth.user.id : null,
+      confirmed_at: hasInstructions ? new Date().toISOString() : null,
+    }).eq('id', request.id).select('*').single()
+
     setSaving(null)
-    if (error) setMessage(error.message)
-    else { setMessage('Payment instructions sent to the user. They will appear on the user payment page automatically.'); await load() }
+    if (error) {
+      setMessage(`Could not send payment instructions: ${error.message}`)
+      return
+    }
+    if (!updated) {
+      setMessage('Payment details were not saved. Please try again.')
+      return
+    }
+    setEditing((current) => ({ ...current, [request.id]: {} }))
+    setMessage('Payment instructions saved and sent to the user. They will appear on the user payment page automatically.')
+    await load()
   }
 
   if (allowed === null) return <main className="payment-page container"><p>Checking administrator access…</p></main>
