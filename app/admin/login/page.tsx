@@ -21,25 +21,20 @@ export default function AdminLoginPage() {
 
   async function submit() {
     if (busy || !password) return
-    setBusy(true); setMessage('')
+    setBusy(true)
+    setMessage('')
     try {
-      let data: AuthData | null = null
-      const { data: signInData, error } = await supabase.auth.signInWithPassword({ email: ADMIN_EMAIL, password })
-      data = signInData
-      if (error) {
-        const signup = await supabase.auth.signUp({ email: ADMIN_EMAIL, password, options: { data: { full_name: 'Malvis', name: 'Malvis' } } })
-        if (signup.error) throw error
-        data = signup.data
-        if (!data.user) throw new Error('Administrator account could not be created.')
-        if (!data.session) throw new Error('The administrator account was created, but email confirmation is enabled. Disable email confirmation in Supabase Authentication settings, then sign in again.')
-      }
-      if (!data?.user) throw new Error('Administrator account could not be loaded.')
+      const { data, error } = await supabase.auth.signInWithPassword({ email: ADMIN_EMAIL, password })
+      if (error) throw new Error('Invalid administrator email or password.')
+      if (!data.user || !data.session) throw new Error('Administrator session could not be created.')
       await verifyAdmin(data.user.id)
       window.location.assign('/admin/dashboard')
     } catch (error) {
       await supabase.auth.signOut()
       setMessage(error instanceof Error ? error.message : 'Administrator login failed. Please try again.')
-    } finally { setBusy(false) }
+    } finally {
+      setBusy(false)
+    }
   }
 
   return <main className="payment-page container"><a className="back-link" href="/">← Where Talent Meets Film</a><div className="payment-card auth-card"><div className="eyebrow">Administrator access</div><h1>Admin login.</h1><p className="muted">Only the designated administrator account can access the administration area.</p><label>Administrator email<input type="email" value={email} readOnly /></label><label>Password<input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Administrator password" autoComplete="current-password" /></label>{message && <div className="info-box" role="alert"><strong>Administrator update</strong><p>{message}</p></div>}<button className="btn primary" disabled={busy || !password} onClick={submit}>{busy ? 'Checking…' : 'Sign in to Admin →'}</button><a className="btn secondary" href="/login">User login</a></div></main>
