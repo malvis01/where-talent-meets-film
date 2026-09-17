@@ -16,29 +16,20 @@ export default function ProductionCastingPage(){
  const [user,setUser]=useState<any>(null); const [calls,setCalls]=useState<any[]>([]); const [apps,setApps]=useState<App[]>([]); const [message,setMessage]=useState(''); const [expanded,setExpanded]=useState<string|null>(null); const [form,setForm]=useState({title:'',project_name:'',role_name:'',description:'',country:'',region:'',city:'',age_min:'',age_max:'',experience_level:'Beginner',languages:'',skills:'',audition_requirement:''}); const update=(k:string,v:string)=>setForm(f=>({...f,[k]:v}))
  async function signMedia(path:string){if(!path||path.startsWith('http://')||path.startsWith('https://'))return path;const {data,error}=await supabase.storage.from('actor-media').createSignedUrl(path,3600);return error?null:data?.signedUrl||null}
  async function load(){const {data:{user}}=await supabase.auth.getUser();if(!user){setMessage('Please sign in first.');return}setUser(user)
-   const [c,a]=await Promise.all([supabase.from('casting_calls').select('*').eq('production_user_id',user.id).order('created_at',{ascending:false}),supabase.from('applications').select('id,casting_call_id,actor_user_id,status,note,created_at').order('created_at',{ascending:false})])
-   if(c.error||a.error){setMessage(c.error?.message||a.error?.message||'Could not load casting workspace.');return}
-   const rawApps=(a.data||[]) as App[]; const actorIds=[...new Set(rawApps.map(x=>x.actor_user_id))]
+   const {data:c,error:cError}=await supabase.from('casting_calls').select('*').eq('production_user_id',user.id).order('created_at',{ascending:false})
+   if(cError){setMessage(cError.message);return}
+   const ownedCallIds=(c||[]).map(x=>x.id)
+   let rawApps:App[]=[]
+   if(ownedCallIds.length){const {data:a,error:aError}=await supabase.from('applications').select('id,casting_call_id,actor_user_id,status,note,created_at').in('casting_call_id',ownedCallIds).order('created_at',{ascending:false});if(aError){setMessage(aError.message);return}rawApps=(a||[]) as App[]}
+   const actorIds=[...new Set(rawApps.map(x=>x.actor_user_id))]
    let actorMap:Record<string,Actor>={}, profileMap:Record<string,Profile>={}, skillMap:Record<string,string[]>={}, languageMap:Record<string,string[]>={}, mediaMap:Record<string,Media[]>={}
    if(actorIds.length){
-     const [actors,profiles,skills,languages,media]=await Promise.all([
-       supabase.from('actor_profiles').select('*').in('user_id',actorIds),
-       supabase.from('profiles').select('id,display_name,country,region,city,profile_picture_path').in('id',actorIds),
-       supabase.from('actor_skills').select('user_id,skill').in('user_id',actorIds),
-       supabase.from('actor_languages').select('user_id,language,proficiency').in('user_id',actorIds),
-       supabase.from('actor_media').select('user_id,media_type,storage_path,title').in('user_id',actorIds)
-     ])
+     const [actors,profiles,skills,languages,media]=await Promise.all([supabase.from('actor_profiles').select('*').in('user_id',actorIds),supabase.from('profiles').select('id,display_name,country,region,city,profile_picture_path').in('id',actorIds),supabase.from('actor_skills').select('user_id,skill').in('user_id',actorIds),supabase.from('actor_languages').select('user_id,language,proficiency').in('user_id',actorIds),supabase.from('actor_media').select('user_id,media_type,storage_path,title').in('user_id',actorIds)])
      if(actors.error||profiles.error||skills.error||languages.error||media.error){setMessage(actors.error?.message||profiles.error?.message||skills.error?.message||languages.error?.message||media.error?.message||'Could not load actor profiles.');return}
-     ;(actors.data||[]).forEach((x:Actor)=>actorMap[x.user_id]=x); (profiles.data||[]).forEach((x:Profile)=>profileMap[x.id]=x)
-     ;(skills.data||[] as Skill[]).forEach((x:Skill)=>(skillMap[x.user_id]??=[]).push(x.skill)); (languages.data||[] as Language[]).forEach((x:Language)=>(languageMap[x.user_id]??=[]).push(x.proficiency?`${x.language} (${x.proficiency})`:x.language)); (media.data||[] as Media[]).forEach((x:Media)=>(mediaMap[x.user_id]??=[]).push(x))
-     await Promise.all(actorIds.map(async id=>{
-       const profile=profileMap[id]
-       if(profile?.profile_picture_path) profile.profile_picture_url=await signMedia(profile.profile_picture_path)
-       const mediaItems=mediaMap[id]||[]
-       for(const item of mediaItems) item.media_url=await signMedia(item.storage_path)
-     }))
+     ;(actors.data||[]).forEach((x:Actor)=>actorMap[x.user_id]=x); (profiles.data||[]).forEach((x:Profile)=>profileMap[x.id]=x); (skills.data||[] as Skill[]).forEach((x:Skill)=>(skillMap[x.user_id]??=[]).push(x.skill)); (languages.data||[] as Language[]).forEach((x:Language)=>(languageMap[x.user_id]??=[]).push(x.proficiency?`${x.language} (${x.proficiency})`:x.language)); (media.data||[] as Media[]).forEach((x:Media)=>(mediaMap[x.user_id]??=[]).push(x))
+     await Promise.all(actorIds.map(async id=>{const profile=profileMap[id];if(profile?.profile_picture_path)profile.profile_picture_url=await signMedia(profile.profile_picture_path);for(const item of mediaMap[id]||[])item.media_url=await signMedia(item.storage_path)}))
    }
-   setCalls(c.data||[]); setApps(rawApps.map(x=>({...x,actor:actorMap[x.actor_user_id],profile:profileMap[x.actor_user_id],skills:skillMap[x.actor_user_id]||[],languages:languageMap[x.actor_user_id]||[],media:mediaMap[x.actor_user_id]||[]})))
+   setCalls(c||[]); setApps(rawApps.map(x=>({...x,actor:actorMap[x.actor_user_id],profile:profileMap[x.actor_user_id],skills:skillMap[x.actor_user_id]||[],languages:languageMap[x.actor_user_id]||[],media:mediaMap[x.actor_user_id]||[]})))
  }
  useEffect(()=>{void load()},[])
  async function create(){setMessage('');if(!form.title||!form.project_name||!form.role_name||!form.description||!form.country||!form.city){setMessage('Title, project, role, description, country and city are required.');return}const {error}=await supabase.from('casting_calls').insert({production_user_id:user.id,title:form.title,project_name:form.project_name,role_name:form.role_name,description:form.description,country:form.country,region:form.region,city:form.city,remote_audition:false,age_min:form.age_min?Number(form.age_min):null,age_max:form.age_max?Number(form.age_max):null,experience_level:form.experience_level,languages:form.languages.split(',').map(x=>x.trim()).filter(Boolean),skills:form.skills.split(',').map(x=>x.trim()).filter(Boolean),audition_requirement:form.audition_requirement||null,status:'open'});if(error)setMessage(error.message);else{setMessage('Casting call published.');setForm({title:'',project_name:'',role_name:'',description:'',country:'',region:'',city:'',age_min:'',age_max:'',experience_level:'Beginner',languages:'',skills:'',audition_requirement:''});await load()}}
