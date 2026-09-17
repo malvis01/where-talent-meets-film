@@ -41,20 +41,22 @@ export default function AccountPage() {
   if (loading) return <main className="payment-page container"><div className="payment-card"><p>Loading your account…</p></div></main>
   if (!user) return <main className="payment-page container"><a className="back-link" href="/">← Where Talent Meets Film</a><div className="payment-card"><div className="eyebrow">Account access</div><h1>Please sign in.</h1>{message && <div className="info-box"><p>{message}</p></div>}<a className="btn primary" href="/login">Go to login →</a></div></main>
 
+  const isProduction = profile?.role === 'production'
+
   return (
     <main className="payment-page container">
       <a className="back-link" href="/">← Where Talent Meets Film</a>
       <div className="payment-header">
         <div className="account-heading">
           <div className="account-avatar">{profilePictureUrl ? <img src={profilePictureUrl} alt="Your profile" /> : <span>{(profile?.display_name || 'U').charAt(0).toUpperCase()}</span>}</div>
-          <div><div className="eyebrow">Your talent account</div><h1>Welcome{profile?.display_name ? `, ${profile.display_name}` : ''}.</h1><p>Your account is your home for your talent profile, services, payments and customer care.</p></div>
+          <div><div className="eyebrow">{isProduction ? 'Production workspace' : 'Your talent account'}</div><h1>Welcome{profile?.display_name ? `, ${profile.display_name}` : ''}.</h1><p>{isProduction ? 'Manage your production profile, casting opportunities, applicants, services and customer care from one place.' : 'Your account is your home for your talent profile, services, payments and customer care.'}</p></div>
         </div>
         <button className="btn secondary" onClick={signOut}>Sign out</button>
       </div>
       {message && <div className="info-box"><p>{message}</p></div>}
       <section className="payment-layout">
-        <div className="payment-card"><h2>Account details</h2><p><strong>Phone:</strong> {user.phone || 'Not set'}</p><p><strong>Country:</strong> {profile?.country || 'Not set'}</p><p><strong>City:</strong> {profile?.city || 'Not set'}</p><p><strong>Account type:</strong> {profile?.role || 'actor'}</p><p><strong>Profile readiness:</strong> {profile?.profile_completed ?? 0}%</p>{!profilePictureUrl && <p className="muted">No profile picture uploaded yet. Add one while building your actor profile.</p>}</div>
-        <div className="payment-card"><h2>Platform services</h2><p className="muted">Build your professional profile, request services and track payment instructions from one account.</p><div className="actions"><a className="btn primary" href="/actors/register">Build / update actor profile →</a><a className="btn secondary" href="/payments">Services & payments →</a><a className="btn secondary" href="/support">Chat with customer care →</a></div></div>
+        <div className="payment-card"><h2>Account details</h2><p><strong>Phone:</strong> {user.phone || 'Not set'}</p><p><strong>Country:</strong> {profile?.country || 'Not set'}</p><p><strong>City:</strong> {profile?.city || 'Not set'}</p><p><strong>Account type:</strong> {profile?.role || 'actor'}</p><p><strong>Profile readiness:</strong> {profile?.profile_completed ?? 0}%</p>{!profilePictureUrl && !isProduction && <p className="muted">No profile picture uploaded yet. Add one while building your actor profile.</p>}</div>
+        <div className="payment-card"><h2>{isProduction ? 'Production workspace' : 'Platform services'}</h2><p className="muted">{isProduction ? 'Create and manage casting calls, review applicants, request services and contact customer care.' : 'Build your professional profile, request services and track payment instructions from one account.'}</p><div className="actions">{isProduction ? <><a className="btn primary" href="/production/casting">Manage casting →</a><a className="btn secondary" href="/payments">Services & payments →</a><a className="btn secondary" href="/support">Chat with customer care →</a></> : <><a className="btn primary" href="/actors/register">Build / update actor profile →</a><a className="btn secondary" href="/payments">Services & payments →</a><a className="btn secondary" href="/support">Chat with customer care →</a></>}</div></div>
       </section>
     </main>
   )
