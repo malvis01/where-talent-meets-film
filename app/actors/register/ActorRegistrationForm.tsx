@@ -93,6 +93,14 @@ export default function ActorRegistrationForm() {
         if (error) throw error
       }
 
+      if (form.showreel.trim()) {
+        let showreelUrl: URL
+        try { showreelUrl = new URL(form.showreel.trim()) } catch { throw new Error('Enter a valid showreel URL, including https://') }
+        if (!['http:', 'https:'].includes(showreelUrl.protocol)) throw new Error('Showreel URL must use http:// or https://')
+        const { error } = await supabase.from('actor_media').insert({ user_id: user.id, media_type: 'showreel_url', storage_path: showreelUrl.toString(), title: 'Showreel URL' })
+        if (error) throw error
+      }
+
       if (photoFile) {
         const extension = photoFile.name.split('.').pop()?.toLowerCase() || 'jpg'
         const path = `${user.id}/profile-${Date.now()}.${extension}`
