@@ -15,11 +15,30 @@ export default function ProductionRegisterPage() {
       const phone=normalizePhone(form.phone)
       if(!/^\+[1-9]\d{7,14}$/.test(phone)) throw new Error('Enter your phone number in international format, for example +2348012345678.')
       const {user}=await authenticateWithPhone(phone,form.password,'signup',form.name)
-      const {error:profileError}=await supabase.from('profiles').update({display_name:form.name.trim(),phone,country:form.country.trim(),region:form.region.trim(),city:form.city.trim()}).eq('id',user.id)
-      if(profileError) throw profileError
+
+      // Bootstrap the profile and production role first. This also handles a
+      // brand-new auth user that does not yet have a row in public.profiles.
       const {error:roleError}=await supabase.rpc('request_production_role')
       if(roleError) throw new Error('Your account was created, but production access could not be enabled. Please contact support.')
-      const {error:companyError}=await supabase.from('production_profiles').upsert({user_id:user.id,company_name:form.company.trim(),company_type:form.type,website:form.website.trim()||null,description:form.description.trim()||null,verification_status:'pending'})
+
+      // Now persist the complete registration form on the profile row.
+      const {error:profileError}=await supabase.from('profiles').update({
+        display_name:form.name.trim(),
+        phone,
+        country:form.country.trim(),
+        region:form.region.trim(),
+        city:form.city.trim()
+      }).eq('id',user.id)
+      if(profileError) throw profileError
+
+      const {error:companyError}=await supabase.from('production_profiles').upsert({
+        user_id:user.id,
+        company_name:form.company.trim(),
+        company_type:form.type,
+        website:form.website.trim()||null,
+        description:form.description.trim()||null,
+        verification_status:'pending'
+      })
       if(companyError) throw companyError
       router.push('/production/casting')
     } catch(err){setError(err instanceof Error?err.message:'Could not create production account.')} finally{setSaving(false)}
