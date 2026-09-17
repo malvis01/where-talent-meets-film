@@ -21,10 +21,19 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
-          package-manager-cache: false
 
       - name: Install dependencies
         run: npm install --no-audit --no-fund
 
       - name: Build application
         run: npm run build
+
+      - name: Package source
+        run: zip -r where-talent-meets-film.zip . -x 'node_modules/*' '.next/*' '.git/*'
+
+      - name: Upload project ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: where-talent-meets-film-source
+          path: where-talent-meets-film.zip
+          retention-days: 7
