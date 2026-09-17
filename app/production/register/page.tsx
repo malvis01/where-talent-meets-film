@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { FormEvent, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { authenticateWithPhone, normalizePhone } from '@/lib/phone-auth'
 import { supabase } from '@/lib/supabase'
@@ -10,7 +10,7 @@ export default function ProductionRegisterPage() {
   const [form,setForm]=useState({name:'',phone:'',password:'',company:'',type:'Production company',website:'',description:'',country:'',region:'',city:''})
   const [error,setError]=useState(''); const [saving,setSaving]=useState(false)
   const update=(k:string,v:string)=>setForm(f=>({...f,[k]:v}))
-  async function submit(e:React.FormEvent){e.preventDefault();setError('');setSaving(true)
+  async function submit(e:FormEvent){e.preventDefault();setError('');setSaving(true)
     try {
       const phone=normalizePhone(form.phone)
       if(!/^\+[1-9]\d{7,14}$/.test(phone)) throw new Error('Enter your phone number in international format, for example +2348012345678.')
