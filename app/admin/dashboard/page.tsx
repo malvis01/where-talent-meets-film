@@ -53,7 +53,6 @@ export default function AdminDashboard() {
       return
     }
     setAuthorized(true)
-
     const [u, p, s, a, w] = await Promise.all([
       supabase.from('profiles').select('id,display_name,phone,country,role,status,created_at,last_seen_at').order('created_at', { ascending: false }).limit(100),
       supabase.from('payment_requests').select('id,title,amount,currency,local_amount,commission_amount,recipient_amount,commission_held,status,created_at,user_id').order('created_at', { ascending: false }).limit(100),
@@ -61,10 +60,8 @@ export default function AdminDashboard() {
       supabase.from('admin_payout_accounts').select('*').order('is_default', { ascending: false }).order('created_at', { ascending: false }),
       supabase.from('commission_withdrawals').select('id,amount,currency,status,requested_at,note').order('requested_at', { ascending: false }).limit(30),
     ])
-
     const errors = [u.error, p.error, s.error, a.error, w.error].filter(Boolean)
     if (errors.length) setMessage(errors.map((error) => error?.message).filter(Boolean).join(' · ') || 'Could not load dashboard.')
-
     setUsers(u.data ?? [])
     setPayments(p.data ?? [])
     setSummary((s.data?.[0] ?? null) as Summary | null)
@@ -74,7 +71,6 @@ export default function AdminDashboard() {
       setSelectedAccount(a.data[0].id)
       setCurrency((a.data[0].currency || 'USD').toUpperCase())
     }
-
     const [{ count: userCount, error: userCountError }, { count: paymentCount, error: paymentCountError }] = await Promise.all([
       supabase.from('profiles').select('*', { count: 'exact', head: true }),
       supabase.from('payment_requests').select('*', { count: 'exact', head: true }),
@@ -113,11 +109,7 @@ export default function AdminDashboard() {
     const selectedCurrency = (selected.currency || '').toUpperCase()
     if (!selectedCurrency) { setMessage('The selected payout account has no currency.'); return }
     setCurrency(selectedCurrency)
-    const { data, error } = await supabase.rpc('request_commission_withdrawal', {
-      p_payout_account_id: selected.id,
-      p_amount: value,
-      p_currency: selectedCurrency,
-    })
+    const { data, error } = await supabase.rpc('request_commission_withdrawal', { p_payout_account_id: selected.id, p_amount: value, p_currency: selectedCurrency })
     if (error) setMessage(error.message)
     else { setMessage(`Commission withdrawal recorded. Remaining ${selectedCurrency} commission: ${Number(data?.[0]?.available ?? 0).toLocaleString()}.`); setAmount(''); await load() }
   }
@@ -129,3 +121,4 @@ export default function AdminDashboard() {
   const recentUsers = users.slice(0, 10)
 
   return <main className="payment-page container"><a className="back-link" href="/admin/login">← Admin access</a><div className="payment-header"><div><div className="eyebrow">Golding&apos;s Production Company</div><h1>Platform control centre.</h1><p>Monitor users, customer care, service payments, platform commission and withdrawals.</p></div><div className="actions"><a className="btn secondary" href="/admin/support">Customer care</a><a className="btn secondary" href="/admin/payments">Payment desk</a></div></div>{message && <div className="info-box"><p>{message}</p></div>}<section className="stats-grid"><div className="stat-card"><span>Total users</span><strong>{totalUsers}</strong></div><div className="stat-card"><span>Total payment requests</span><strong>{totalPayments}</strong></div><div className="stat-card"><span>Commission held</span><strong>{Number(summary.total_held).toLocaleString()}</strong></div><div className="stat-card"><span>Available commission</span><strong>{Number(summary.available).toLocaleString()}</strong></div></section><section className="payment-layout"><div className="payment-card"><h2>New / recent users</h2>{recentUsers.length === 0 ? <p className="muted">No users yet.</p> : <div className="admin-list">{recentUsers.map((u) => <article key={u.id}><strong>{u.display_name || 'Unnamed user'}</strong><span>{u.phone || 'No phone'} · {u.country || 'Country not set'}</span><small>Joined {new Date(u.created_at).toLocaleString()} · {u.role} · {u.status}</small></article>)}</div>}</div><div className="payment-card"><h2>Commission ledger</h2>{confirmedPayments.length === 0 ? <p className="muted">No confirmed commission yet.</p> : <div className="admin-list">{confirmedPayments.slice(0, 10).map((p) => <article key={p.id}><strong>{p.title}</strong><span>Gross: {p.currency} {Number(p.local_amount ?? p.amount).toLocaleString()} · 10%: {p.currency} {Number(p.commission_amount).toLocaleString()}</span><small>Recipient amount: {p.currency} {Number(p.recipient_amount).toLocaleString()} · {p.status}</small></article>)}</div>}</div></section><section className="payment-card"><h2>Admin withdrawal accounts</h2><p className="muted">Store payout details for any country/currency. These details are only visible to the administrator.</p><div className="admin-list">{accounts.map((a) => <article key={a.id}><strong>{a.account_name} · {a.bank_name}</strong><span>{a.country} · {a.currency} · {a.account_number || a.iban || 'Bank details stored'}</span><small>{a.swift_bic ? `SWIFT/BIC: ${a.swift_bic}` : ''}{a.is_default ? ' · Default' : ''}</small></article>)}</div><div className="form-grid"><label>Country<input value={country} onChange={(e) => setCountry(e.target.value)} placeholder="Nigeria" /></label><label>Currency<input value={currency} onChange={(e) => setCurrency(e.target.value)} placeholder="NGN" /></label><label>Account name<input value={accountName} onChange={(e) => setAccountName(e.target.value)} /></label><label>Bank name<input value={bankName} onChange={(e) => setBankName(e.target.value)} /></label><label>Account number<input value={accountNumber} onChange={(e) => setAccountNumber(e.target.value)} /></label><label>IBAN <small>Optional</small><input value={iban} onChange={(e) => setIban(e.target.value)} /></label><label>SWIFT/BIC <small>Optional</small><input value={swift} onChange={(e) => setSwift(e.target.value)} /></label><label>Routing number <small>Optional</small><input value={routing} onChange={(e) => setRouting(e.target.value)} /></label><label>Branch code <small>Optional</small><input value={branch} onChange={(e) => setBranch(e.target.value)} /></label><label className="full">Other details <small>Optional</small><textarea rows={3} value={other} onChange={(e) => setOther(e.target.value)} /></label></div><button className="btn primary" onClick={addAccount}>Save withdrawal account →</button></section><section className="payment-layout"><div className="payment-card"><h2>Withdraw platform commission</h2><p className="muted">The database checks the live balance inside a transaction and prevents two simultaneous withdrawals from spending the same commission.</p><label>Withdrawal account<select value={selectedAccount} onChange={(e) => { const id = e.target.value; setSelectedAccount(id); const account = accounts.find((item) => item.id === id); if (account?.currency) setCurrency(account.currency.toUpperCase()) }}>{accounts.map((a) => <option key={a.id} value={a.id}>{a.account_name} · {a.country} · {a.currency}</option>)}</select></label><label>Amount<input type="number" min="0" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="Amount" /></label><label>Currency<input value={currency} readOnly /></label><button className="btn primary" onClick={requestWithdrawal}>Record withdrawal →</button></div><div className="payment-card"><h2>Withdrawal history</h2>{withdrawals.length === 0 ? <p className="muted">No withdrawals recorded.</p> : <div className="admin-list">{withdrawals.map((w) => <article key={w.id}><strong>{w.currency} {Number(w.amount).toLocaleString()}</strong><span>{w.status}</span><small>{new Date(w.requested_at).toLocaleString()}</small></article>)}</div>}</div></section></main>
+}
