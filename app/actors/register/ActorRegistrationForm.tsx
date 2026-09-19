@@ -69,7 +69,7 @@ export default function ActorRegistrationForm() {
         user_id: user.id, stage_name: form.stageName.trim() || null, age_range: form.ageRange || null,
         gender: form.gender || null, bio: form.bio.trim() || null, experience_level: form.level,
         willing_to_travel: form.travel, willing_to_relocate: form.relocation, availability: form.availability,
-      })
+      }, { onConflict: 'user_id' })
       if (actorError) throw actorError
 
       // Replace the collections represented by this form before inserting current values.
@@ -104,8 +104,29 @@ export default function ActorRegistrationForm() {
         let showreelUrl: URL
         try { showreelUrl = new URL(form.showreel.trim()) } catch { throw new Error('Enter a valid showreel URL, including https://') }
         if (!['http:', 'https:'].includes(showreelUrl.protocol)) throw new Error('Showreel URL must use http:// or https://')
-        const { error } = await supabase.from('actor_media').insert({ user_id: user.id, media_type: 'showreel_url', storage_path: showreelUrl.toString(), title: 'Showreel URL' })
-        if (error) throw error
+
+        const { data: existingShowreel, error: existingShowreelError } = await supabase
+          .from('actor_media')
+          .select('id')
+          .eq('user_id', user.id)
+          .eq('media_type', 'showreel_url')
+          .maybeSingle()
+        if (existingShowreelError) throw existingShowreelError
+
+        const showreelPayload = {
+          user_id: user.id,
+          media_type: 'showreel_url' as const,
+          storage_path: showreelUrl.toString(),
+          title: 'Showreel URL',
+        }
+
+        if (existingShowreel) {
+          const { error } = await supabase.from('actor_media').update(showreelPayload).eq('id', existingShowreel.id).eq('user_id', user.id)
+          if (error) throw error
+        } else {
+          const { error } = await supabase.from('actor_media').insert(showreelPayload)
+          if (error) throw error
+        }
       }
 
       if (photoFile) {
