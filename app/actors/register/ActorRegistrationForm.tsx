@@ -72,6 +72,13 @@ export default function ActorRegistrationForm() {
       })
       if (actorError) throw actorError
 
+      // Replace the collections represented by this form before inserting current values.
+      // This prevents duplicate skills/languages/experience/training when an actor retries or updates.
+      for (const table of ['actor_skills', 'actor_languages', 'actor_experience', 'actor_training'] as const) {
+        const { error } = await supabase.from(table).delete().eq('user_id', user.id)
+        if (error) throw new Error('Could not update actor ' + table.replace('actor_', '').replaceAll('_', ' ') + ': ' + error.message)
+      }
+
       if (form.selectedSkills.length) {
         const { error } = await supabase.from('actor_skills').insert(form.selectedSkills.map((skill) => ({ user_id: user.id, skill })))
         if (error) throw error
