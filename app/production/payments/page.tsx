@@ -56,7 +56,7 @@ export default function ProductionPaymentDashboard(){
       payment_instructions:e.payment_instructions===undefined?r.payment_instructions:e.payment_instructions,
       admin_payment_reference:e.admin_payment_reference===undefined?r.admin_payment_reference:e.admin_payment_reference,
       status:complete?'confirmed':(e.status??r.status),
-      completed_by_production:complete?(await supabase.auth.getUser()).data.user?.id:null
+      completed_by_production:complete ? (await supabase.auth.getUser()).data.user?.id : undefined
     }
     const {error}=await supabase.from('payment_requests').update(patch).eq('id',r.id).eq('production_user_id',(await supabase.auth.getUser()).data.user?.id)
     setSaving(null)
