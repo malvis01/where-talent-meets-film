@@ -87,7 +87,7 @@ export default function ActorRegistrationForm() {
   }
 
   const completion = useMemo(() => {
-    const fields = [form.name, form.country, form.city, form.ageRange, form.languages, form.bio, form.experience, photoFile]
+    const fields = [form.name, form.country, form.city, form.ageRange, form.languages, form.bio, form.experience, photoFile || photoPreview]
     return Math.round((fields.filter(Boolean).length / fields.length) * 100)
   }, [form, photoFile])
 
