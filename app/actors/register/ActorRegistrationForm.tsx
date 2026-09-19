@@ -15,6 +15,7 @@ export default function ActorRegistrationForm() {
   const [photoPreview, setPhotoPreview] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const [existingUser, setExistingUser] = useState(false)
   const [form, setForm] = useState({
     name: '', stageName: '', email: '', phone: '', password: '', country: '', region: '', city: '',
     ageRange: '', gender: '', languages: '', bio: '', experience: '', level: 'Beginner',
@@ -29,6 +30,7 @@ export default function ActorRegistrationForm() {
     async function loadExistingProfile() {
       const { data: auth } = await supabase.auth.getUser()
       if (!auth.user || !active) return
+      setExistingUser(true)
       const [{ data: profile }, { data: actor }, { data: skillsRows }, { data: languageRows }, { data: experienceRows }, { data: trainingRows }, { data: mediaRows }] = await Promise.all([
         supabase.from('profiles').select('display_name,phone,country,region,city,profile_picture_path').eq('id', auth.user.id).maybeSingle(),
         supabase.from('actor_profiles').select('stage_name,age_range,gender,bio,experience_level,willing_to_travel,willing_to_relocate,availability').eq('user_id', auth.user.id).maybeSingle(),
@@ -92,8 +94,9 @@ export default function ActorRegistrationForm() {
   const next = () => {
     setError('')
     if (step === 0) {
-      if (!form.name.trim() || !form.phone.trim() || !form.password) return setError('Full name, phone number and password are required.')
-      if (form.password.length < 8) return setError('Password must be at least 8 characters.')
+      if (!form.name.trim() || !form.phone.trim()) return setError('Full name and phone number are required.')
+      if (!existingUser && !form.password) return setError('Password is required when creating a new account.')
+      if (!existingUser && form.password.length < 8) return setError('Password must be at least 8 characters.')
       if (!/^\+[1-9]\d{7,14}$/.test(normalizePhone(form.phone))) return setError('Enter your phone number in international format, for example +2348012345678.')
     }
     setStep((current) => Math.min(current + 1, steps.length - 1))
