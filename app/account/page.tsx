@@ -44,7 +44,7 @@ export default function AccountPage() {
   }, [])
 
   async function signOut() { await supabase.auth.signOut(); window.location.assign('/') }
-  if (loading) return <main className="payment-page container"><div className="payment-card"><p>Loading your account…</p></div></main>
+  if (loading) return <main className="payment-page container"><div className="payment-card"><p>Loading your account…</p></div><a className="btn secondary" href="/production/payments">Production payment dashboard</a></main>
   if (!user) return <main className="payment-page container"><a className="back-link" href="/">← Where Talent Meets Film</a><div className="payment-card"><div className="eyebrow">Account access</div><h1>Please sign in.</h1>{message && <div className="info-box"><p>{message}</p></div>}<a className="btn primary" href="/login">Go to login →</a></div></main>
   const isProduction = profile?.role === 'production'
   return (
