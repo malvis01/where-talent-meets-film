@@ -112,7 +112,7 @@ export default function ActorRegistrationForm() {
         if (pictureError) throw pictureError
       }
 
-      router.push('/payments')
+      router.push('/account')
       router.refresh()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'We could not create your profile. Please try again.')
